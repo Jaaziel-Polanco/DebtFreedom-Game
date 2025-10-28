@@ -1,50 +1,57 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { getSupabaseBrowserClient } from "@/lib/supabase"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { ArrowLeft, User, Trophy, Clock, CheckCircle2, XCircle } from "lucide-react"
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { getSupabaseBrowserClient } from "@/lib/supabase";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  ArrowLeft,
+  User,
+  Trophy,
+  Clock,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
 
 interface SessionDetail {
-  id: string
-  created_at: string
-  completed_at: string | null
+  id: string;
+  created_at: string;
+  completed_at: string | null;
   user: {
-    name: string
-    phone: string
-  }
+    name: string;
+    phone: string;
+  };
   participant: {
-    name: string
-    points: number
-  } | null
+    name: string;
+    points: number;
+  } | null;
   session_questions: Array<{
-    id: string
-    answered_at: string | null
+    id: string;
+    answered_at: string | null;
     question: {
-      text: string
-      display_order: number
-    }
+      text: string;
+      display_order: number;
+    };
     answer: {
-      text: string
-      is_correct: boolean
-    } | null
-  }>
+      text: string;
+      is_correct: boolean;
+    } | null;
+  }>;
 }
 
 export function SessionDetails({ sessionId }: { sessionId: string }) {
-  const router = useRouter()
-  const [session, setSession] = useState<SessionDetail | null>(null)
-  const [loading, setLoading] = useState(true)
+  const router = useRouter();
+  const [session, setSession] = useState<SessionDetail | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadSession()
-  }, [sessionId])
+    loadSession();
+  }, [sessionId]);
 
   async function loadSession() {
-    const supabase = getSupabaseBrowserClient()
+    const supabase = getSupabaseBrowserClient();
     const { data, error } = await supabase
       .from("qa_sessions")
       .select(
@@ -60,29 +67,32 @@ export function SessionDetails({ sessionId }: { sessionId: string }) {
           question:questions(text, display_order),
           answer:answers(text, is_correct)
         )
-      `,
+      `
       )
       .eq("id", sessionId)
-      .single()
+      .single();
 
     if (error) {
-      console.error("[v0] Error loading session:", error)
-      return
+      console.error(" Error loading session:", error);
+      return;
     }
 
     // Sort session_questions by display_order
     if (data.session_questions) {
-      data.session_questions.sort((a: any, b: any) =>
-        (a.question?.display_order || 0) - (b.question?.display_order || 0)
-      )
+      data.session_questions.sort(
+        (a: any, b: any) =>
+          (a.question?.display_order || 0) - (b.question?.display_order || 0)
+      );
     }
 
-    setSession(data as unknown as SessionDetail)
-    setLoading(false)
+    setSession(data as unknown as SessionDetail);
+    setLoading(false);
   }
 
   if (loading) {
-    return <div className="text-center py-8">Cargando detalles de la sesión...</div>
+    return (
+      <div className="text-center py-8">Cargando detalles de la sesión...</div>
+    );
   }
 
   if (!session) {
@@ -90,14 +100,20 @@ export function SessionDetails({ sessionId }: { sessionId: string }) {
       <Card>
         <CardContent className="py-12 text-center">
           <p className="text-muted-foreground mb-4">Sesión no encontrada</p>
-          <Button onClick={() => router.push("/admin/sessions")}>Volver a Sesiones</Button>
+          <Button onClick={() => router.push("/admin/sessions")}>
+            Volver a Sesiones
+          </Button>
         </CardContent>
       </Card>
-    )
+    );
   }
 
-  const answeredQuestions = session.session_questions.filter((sq) => sq.answered_at)
-  const correctAnswers = answeredQuestions.filter((sq) => sq.answer?.is_correct)
+  const answeredQuestions = session.session_questions.filter(
+    (sq) => sq.answered_at
+  );
+  const correctAnswers = answeredQuestions.filter(
+    (sq) => sq.answer?.is_correct
+  );
 
   function formatDate(dateString: string) {
     return new Date(dateString).toLocaleString("es-ES", {
@@ -106,12 +122,16 @@ export function SessionDetails({ sessionId }: { sessionId: string }) {
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-    })
+    });
   }
 
   return (
     <div className="max-w-4xl mx-auto">
-      <Button variant="ghost" onClick={() => router.push("/admin/sessions")} className="mb-6">
+      <Button
+        variant="ghost"
+        onClick={() => router.push("/admin/sessions")}
+        className="mb-6"
+      >
         <ArrowLeft className="w-4 h-4 mr-2" />
         Volver a Sesiones
       </Button>
@@ -142,9 +162,12 @@ export function SessionDetails({ sessionId }: { sessionId: string }) {
                   <div className="flex items-center gap-2">
                     <Trophy className="w-4 h-4 text-muted-foreground" />
                     <div>
-                      <div className="text-sm text-muted-foreground">Participante</div>
+                      <div className="text-sm text-muted-foreground">
+                        Participante
+                      </div>
                       <div className="font-medium">
-                        {session.participant.name} ({session.participant.points} puntos)
+                        {session.participant.name} ({session.participant.points}{" "}
+                        puntos)
                       </div>
                     </div>
                   </div>
@@ -154,16 +177,24 @@ export function SessionDetails({ sessionId }: { sessionId: string }) {
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-muted-foreground" />
                   <div>
-                    <div className="text-sm text-muted-foreground">Iniciada</div>
-                    <div className="font-medium">{formatDate(session.created_at)}</div>
+                    <div className="text-sm text-muted-foreground">
+                      Iniciada
+                    </div>
+                    <div className="font-medium">
+                      {formatDate(session.created_at)}
+                    </div>
                   </div>
                 </div>
                 {session.completed_at && (
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-muted-foreground" />
                     <div>
-                      <div className="text-sm text-muted-foreground">Completada</div>
-                      <div className="font-medium">{formatDate(session.completed_at)}</div>
+                      <div className="text-sm text-muted-foreground">
+                        Completada
+                      </div>
+                      <div className="font-medium">
+                        {formatDate(session.completed_at)}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -173,18 +204,26 @@ export function SessionDetails({ sessionId }: { sessionId: string }) {
             <div className="pt-4 border-t">
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div>
-                  <div className="text-2xl font-bold">{session.session_questions.length}</div>
-                  <div className="text-sm text-muted-foreground">Total Preguntas</div>
+                  <div className="text-2xl font-bold">
+                    {session.session_questions.length}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Total Preguntas
+                  </div>
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-green-600">{correctAnswers.length}</div>
+                  <div className="text-2xl font-bold text-green-600">
+                    {correctAnswers.length}
+                  </div>
                   <div className="text-sm text-muted-foreground">Correctas</div>
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-red-600">
                     {answeredQuestions.length - correctAnswers.length}
                   </div>
-                  <div className="text-sm text-muted-foreground">Incorrectas</div>
+                  <div className="text-sm text-muted-foreground">
+                    Incorrectas
+                  </div>
                 </div>
               </div>
             </div>
@@ -212,7 +251,13 @@ export function SessionDetails({ sessionId }: { sessionId: string }) {
                           ) : (
                             <XCircle className="w-4 h-4 text-red-600" />
                           )}
-                          <span className={sq.answer.is_correct ? "text-green-600" : "text-red-600"}>
+                          <span
+                            className={
+                              sq.answer.is_correct
+                                ? "text-green-600"
+                                : "text-red-600"
+                            }
+                          >
                             {sq.answer.text}
                           </span>
                         </div>
@@ -228,5 +273,5 @@ export function SessionDetails({ sessionId }: { sessionId: string }) {
         </Card>
       </div>
     </div>
-  )
+  );
 }

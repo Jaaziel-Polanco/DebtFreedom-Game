@@ -1,38 +1,40 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { getSupabaseBrowserClient } from "@/lib/supabase"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Eye, Clock, CheckCircle2, User, Trophy } from "lucide-react"
-import Link from "next/link"
+import { useEffect, useState } from "react";
+import { getSupabaseBrowserClient } from "@/lib/supabase";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Eye, Clock, CheckCircle2, User, Trophy } from "lucide-react";
+import Link from "next/link";
+import { SessionStatus } from "@/lib/types";
 
 interface SessionWithDetails {
-  id: string
-  created_at: string
-  completed_at: string | null
+  id: string;
+  created_at: string;
+  completed_at: string | null;
+  status: SessionStatus;
   user: {
-    name: string
-    phone: string
-  }
+    name: string;
+    phone: string;
+  };
   participant: {
-    name: string
-    points: number
-  } | null
+    name: string;
+    points: number;
+  } | null;
 }
 
 export function SessionsList() {
-  const [sessions, setSessions] = useState<SessionWithDetails[]>([])
-  const [loading, setLoading] = useState(true)
+  const [sessions, setSessions] = useState<SessionWithDetails[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadSessions()
-  }, [])
+    loadSessions();
+  }, []);
 
   async function loadSessions() {
-    const supabase = getSupabaseBrowserClient()
+    const supabase = getSupabaseBrowserClient();
     const { data, error } = await supabase
       .from("qa_sessions")
       .select(
@@ -41,26 +43,28 @@ export function SessionsList() {
         created_at,
         completed_at,
         user:users(name, phone),
-        participant:participants(name, points)
-      `,
+        participant:participants(name, points),
+        status
+      `
       )
-      .order("created_at", { ascending: false })
+      .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("[v0] Error loading sessions:", error)
-      return
+      console.error(" Error loading sessions:", error);
+      return;
     }
 
-    setSessions(data as unknown as SessionWithDetails[])
-    setLoading(false)
+    setSessions(data as unknown as SessionWithDetails[]);
+    setLoading(false);
   }
+  console.log("sessions", sessions);
 
   if (loading) {
-    return <div className="text-center py-8">Cargando sesiones...</div>
+    return <div className="text-center py-8">Cargando sesiones...</div>;
   }
 
-  const activeSessions = sessions.filter((s) => !s.completed_at)
-  const completedSessions = sessions.filter((s) => s.completed_at)
+  const activeSessions = sessions.filter((s) => s.status === "in_progress");
+  const completedSessions = sessions.filter((s) => s.status === "completed");
 
   function formatDate(dateString: string) {
     return new Date(dateString).toLocaleString("es-ES", {
@@ -69,7 +73,7 @@ export function SessionsList() {
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-    })
+    });
   }
 
   function SessionCard({ session }: { session: SessionWithDetails }) {
@@ -79,9 +83,23 @@ export function SessionsList() {
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
-                <CardTitle className="text-lg">Sesión #{session.id.slice(0, 8)}</CardTitle>
-                <Badge variant={session.completed_at ? "secondary" : "default"}>
-                  {session.completed_at ? "Completada" : "Activa"}
+                <CardTitle className="text-lg">
+                  Sesión #{session.id.slice(0, 8)}
+                </CardTitle>
+                <Badge
+                  variant={
+                    session.status === "completed"
+                      ? "secondary"
+                      : session.status === "failed"
+                      ? "destructive"
+                      : "default"
+                  }
+                >
+                  {session.status === "completed"
+                    ? "Completada"
+                    : session.status === "failed"
+                    ? "Fallida"
+                    : "En progreso"}
                 </Badge>
               </div>
               <div className="space-y-2 text-sm text-muted-foreground">
@@ -95,7 +113,8 @@ export function SessionsList() {
                   <div className="flex items-center gap-2">
                     <Trophy className="w-4 h-4" />
                     <span>
-                      Donando a: {session.participant.name} ({session.participant.points} pts)
+                      Donando a: {session.participant.name} (
+                      {session.participant.points} pts)
                     </span>
                   </div>
                 )}
@@ -120,25 +139,31 @@ export function SessionsList() {
           </div>
         </CardHeader>
       </Card>
-    )
+    );
   }
 
   if (sessions.length === 0) {
     return (
       <Card>
         <CardContent className="py-12 text-center">
-          <p className="text-muted-foreground">No hay sesiones registradas aún</p>
+          <p className="text-muted-foreground">
+            No hay sesiones registradas aún
+          </p>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
     <Tabs defaultValue="all" className="w-full">
       <TabsList className="grid w-full max-w-md grid-cols-3">
         <TabsTrigger value="all">Todas ({sessions.length})</TabsTrigger>
-        <TabsTrigger value="active">Activas ({activeSessions.length})</TabsTrigger>
-        <TabsTrigger value="completed">Completadas ({completedSessions.length})</TabsTrigger>
+        <TabsTrigger value="active">
+          Activas ({activeSessions.length})
+        </TabsTrigger>
+        <TabsTrigger value="completed">
+          Completadas ({completedSessions.length})
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="all" className="space-y-4 mt-6">
@@ -155,7 +180,9 @@ export function SessionsList() {
             </CardContent>
           </Card>
         ) : (
-          activeSessions.map((session) => <SessionCard key={session.id} session={session} />)
+          activeSessions.map((session) => (
+            <SessionCard key={session.id} session={session} />
+          ))
         )}
       </TabsContent>
 
@@ -163,13 +190,17 @@ export function SessionsList() {
         {completedSessions.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground">No hay sesiones completadas</p>
+              <p className="text-muted-foreground">
+                No hay sesiones completadas
+              </p>
             </CardContent>
           </Card>
         ) : (
-          completedSessions.map((session) => <SessionCard key={session.id} session={session} />)
+          completedSessions.map((session) => (
+            <SessionCard key={session.id} session={session} />
+          ))
         )}
       </TabsContent>
     </Tabs>
-  )
+  );
 }

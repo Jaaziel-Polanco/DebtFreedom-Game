@@ -1,52 +1,56 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { getSupabaseBrowserClient } from "@/lib/supabase"
-import type { Participant } from "@/lib/types"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Save } from "lucide-react"
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { getSupabaseBrowserClient } from "@/lib/supabase";
+import type { Participant } from "@/lib/types";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Save } from "lucide-react";
 
 interface ParticipantFormProps {
-  participantId?: string
+  participantId?: string;
 }
 
 export function ParticipantForm({ participantId }: ParticipantFormProps) {
-  const router = useRouter()
-  const [loading, setLoading] = useState(false)
-  const [name, setName] = useState("")
-  const [phone, setPhone] = useState("")
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
 
   useEffect(() => {
     if (participantId) {
-      loadParticipant()
+      loadParticipant();
     }
-  }, [participantId])
+  }, [participantId]);
 
   async function loadParticipant() {
-    const supabase = getSupabaseBrowserClient()
-    const { data, error } = await supabase.from("participants").select("*").eq("id", participantId).single()
+    const supabase = getSupabaseBrowserClient();
+    const { data, error } = await supabase
+      .from("participants")
+      .select("*")
+      .eq("id", participantId)
+      .single();
 
     if (error) {
-      console.error("[v0] Error loading participant:", error)
-      return
+      console.error(" Error loading participant:", error);
+      return;
     }
 
-    const participant = data as Participant
-    setName(participant.name)
-    setPhone(participant.phone || "")
+    const participant = data as Participant;
+    setName(participant.name);
+    setPhone(participant.phone || "");
   }
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault();
+    setLoading(true);
 
-    const supabase = getSupabaseBrowserClient()
+    const supabase = getSupabaseBrowserClient();
 
     try {
       if (participantId) {
@@ -54,22 +58,24 @@ export function ParticipantForm({ participantId }: ParticipantFormProps) {
         const { error } = await supabase
           .from("participants")
           .update({ name, phone: phone || null })
-          .eq("id", participantId)
+          .eq("id", participantId);
 
-        if (error) throw error
+        if (error) throw error;
       } else {
         // Create new participant
-        const { error } = await supabase.from("participants").insert({ name, phone: phone || null })
+        const { error } = await supabase
+          .from("participants")
+          .insert({ name, phone: phone || null });
 
-        if (error) throw error
+        if (error) throw error;
       }
 
-      router.push("/admin/participants")
+      router.push("/admin/participants");
     } catch (error) {
-      console.error("[v0] Error saving participant:", error)
-      alert("Error al guardar el participante")
+      console.error(" Error saving participant:", error);
+      alert("Error al guardar el participante");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -108,10 +114,15 @@ export function ParticipantForm({ participantId }: ParticipantFormProps) {
           <Save className="w-4 h-4 mr-2" />
           {loading ? "Guardando..." : "Guardar Participante"}
         </Button>
-        <Button type="button" variant="outline" size="lg" onClick={() => router.push("/admin/participants")}>
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          onClick={() => router.push("/admin/participants")}
+        >
           Cancelar
         </Button>
       </div>
     </form>
-  )
+  );
 }

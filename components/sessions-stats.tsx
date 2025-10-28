@@ -1,15 +1,17 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { getSupabaseBrowserClient } from "@/lib/supabase"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, PlayCircle, CheckCircle2, Trophy } from "lucide-react"
+import { useEffect, useState } from "react";
+import { getSupabaseBrowserClient } from "@/lib/supabase";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Users, PlayCircle, CheckCircle2, Trophy, XCircle } from "lucide-react";
+import { SessionStatistics } from "@/lib/types";
 
 interface Stats {
-  totalSessions: number
-  activeSessions: number
-  completedSessions: number
-  totalUsers: number
+  totalSessions: number;
+  activeSessions: number;
+  completedSessions: number;
+  failedSessions: number;
+  totalUsers: number;
 }
 
 export function SessionsStats() {
@@ -17,40 +19,47 @@ export function SessionsStats() {
     totalSessions: 0,
     activeSessions: 0,
     completedSessions: 0,
+    failedSessions: 0,
     totalUsers: 0,
-  })
-  const [loading, setLoading] = useState(true)
+  });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadStats()
-  }, [])
+    loadStats();
+  }, []);
 
   async function loadStats() {
-    const supabase = getSupabaseBrowserClient()
+    const supabase = getSupabaseBrowserClient();
 
     const [sessionsResult, usersResult] = await Promise.all([
-      supabase.from("qa_sessions").select("completed_at"),
+      supabase.from("qa_sessions").select("status"),
       supabase.from("users").select("id", { count: "exact", head: true }),
-    ])
+    ]);
 
     if (sessionsResult.data) {
-      const total = sessionsResult.data.length
-      const completed = sessionsResult.data.filter((s) => s.completed_at !== null).length
-      const active = total - completed
+      const total = sessionsResult.data.length;
+      const completed = sessionsResult.data.filter(
+        (s: SessionStatistics) => s.status === "completed"
+      ).length;
+      const failed = sessionsResult.data.filter(
+        (s: SessionStatistics) => s.status === "failed"
+      ).length;
+      const active = total - completed - failed;
 
       setStats({
         totalSessions: total,
         activeSessions: active,
         completedSessions: completed,
+        failedSessions: failed,
         totalUsers: usersResult.count || 0,
-      })
+      } as Stats);
     }
 
-    setLoading(false)
+    setLoading(false);
   }
 
   if (loading) {
-    return <div className="text-center py-8">Cargando estadísticas...</div>
+    return <div className="text-center py-8">Cargando estadísticas...</div>;
   }
 
   const statsCards = [
@@ -76,22 +85,31 @@ export function SessionsStats() {
       bgColor: "bg-purple-600/10",
     },
     {
+      title: "Sesiones Fallidas",
+      value: stats.failedSessions,
+      icon: XCircle,
+      color: "text-red-600",
+      bgColor: "bg-red-600/10",
+    },
+    {
       title: "Total Usuarios",
       value: stats.totalUsers,
       icon: Users,
       color: "text-orange-600",
       bgColor: "bg-orange-600/10",
     },
-  ]
+  ];
 
   return (
     <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
       {statsCards.map((stat) => {
-        const Icon = stat.icon
+        const Icon = stat.icon;
         return (
           <Card key={stat.title}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{stat.title}</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                {stat.title}
+              </CardTitle>
               <div className={`p-2 rounded-lg ${stat.bgColor}`}>
                 <Icon className={`w-4 h-4 ${stat.color}`} />
               </div>
@@ -100,8 +118,8 @@ export function SessionsStats() {
               <div className="text-3xl font-bold">{stat.value}</div>
             </CardContent>
           </Card>
-        )
+        );
       })}
     </div>
-  )
+  );
 }

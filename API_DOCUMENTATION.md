@@ -84,7 +84,11 @@ POST /api/sessions
   "session": {
     "id": "uuid",
     "user_id": "uuid",
-    "participant_id": "uuid",
+    "participant_id": null,
+    "status": "in_progress",
+    "total_questions": 0,
+    "correct_answers": 0,
+    "points_donated": 0,
     "created_at": "2024-01-01T00:00:00Z",
     "completed_at": null
   },
@@ -145,6 +149,10 @@ GET /api/sessions?session_id={session_id}
   "id": "uuid",
   "user_id": "uuid",
   "participant_id": "uuid",
+  "status": "in_progress",
+  "total_questions": 10,
+  "correct_answers": 7,
+  "points_donated": 0,
   "created_at": "2024-01-01T00:00:00Z",
   "completed_at": null,
   "user": {
@@ -213,12 +221,74 @@ POST /api/sessions/{sessionId}/answer
 POST /api/sessions/{sessionId}/complete
 \`\`\`
 
-**Response (200):**
+**Request Body:**
+\`\`\`json
+{
+  "participant_id": "uuid"
+}
+\`\`\`
+
+**Description:**
+Completes a session and evaluates if the user passed the quiz:
+- **Pass (≥70% correct)**: Awards 1 point to the selected participant and marks session as `completed`
+- **Fail (<70% correct)**: No points awarded and marks session as `failed`
+
+The calculation and point donation is handled automatically by database triggers.
+
+**Response (200) - Passed:**
 \`\`\`json
 {
   "success": true,
-  "message": "Session completed and points awarded",
-  "points_awarded": 1
+  "session": {
+    "id": "uuid",
+    "status": "completed",
+    "total_questions": 10,
+    "correct_answers": 8,
+    "success_rate": "80.00",
+    "points_donated": 1,
+    "completed_at": "2024-01-01T00:00:00Z"
+  },
+  "participant": {
+    "id": "uuid",
+    "name": "John Doe",
+    "points": 16
+  },
+  "message": "¡Felicidades! Pasaste con 80.0%. Se donó 1 punto a John Doe"
+}
+\`\`\`
+
+**Response (200) - Failed:**
+\`\`\`json
+{
+  "success": true,
+  "session": {
+    "id": "uuid",
+    "status": "failed",
+    "total_questions": 10,
+    "correct_answers": 6,
+    "success_rate": "60.00",
+    "points_donated": 0,
+    "completed_at": null
+  },
+  "participant": {
+    "id": "uuid",
+    "name": "John Doe",
+    "points": 15
+  },
+  "message": "Lo siento, necesitas al menos 70% para aprobar. Obtuviste 60.0%"
+}
+\`\`\`
+
+**Response (400) - Errors:**
+\`\`\`json
+{
+  "error": "participant_id is required to donate points"
+}
+\`\`\`
+or
+\`\`\`json
+{
+  "error": "Session already completed"
 }
 \`\`\`
 
@@ -249,22 +319,40 @@ GET /api/participants
 
 ## Typical Flow for WhatsApp Client
 
-1. **User starts game:**
+1. **User Registration:**
    - POST `/api/users` with name and phone
-   - GET `/api/participants` to show list of participants
-   - User selects a participant
+   - Receive user_id for future sessions
 
-2. **Create session:**
-   - POST `/api/sessions` with user_id and participant_id
-   - Receive all active questions ordered by `display_order`
+2. **Create Session:**
+   - POST `/api/sessions` with user_id (participant_id is optional, can be set later)
+   - Receive session_id and all active questions ordered by `display_order`
 
-3. **Answer questions:**
+3. **Answer Questions:**
    - For each question (in the order they were received), POST `/api/sessions/{sessionId}/answer`
    - Receive immediate feedback if answer is correct
+   - Track progress through all questions
 
-4. **Complete session:**
-   - POST `/api/sessions/{sessionId}/complete`
-   - Points are awarded to the selected participant
+4. **Select Beneficiary & Complete:**
+   - GET `/api/participants` to show list of participants
+   - User selects which participant to donate points to
+   - POST `/api/sessions/{sessionId}/complete` with selected participant_id
+   - System automatically:
+     - Calculates correct answers percentage
+     - If ≥70% correct: awards 1 point to participant and marks as "completed"
+     - If <70% correct: no points awarded and marks as "failed"
 
-5. **View results:**
-   - GET `/api/participants` to see updated points
+5. **View Results:**
+   - Receive immediate feedback with:
+     - Final score (percentage)
+     - Whether they passed or failed
+     - Points donated (1 or 0)
+     - Updated participant points
+   - GET `/api/participants` to see updated leaderboard
+
+## Important Rules
+
+- **Passing Threshold**: User must answer at least 70% of questions correctly to pass
+- **Point Donation**: Only successful sessions (≥70%) donate 1 point to the selected participant
+- **Failed Sessions**: Sessions with <70% correct are marked as "failed" and don't donate points
+- **One-Time Completion**: Sessions can only be completed once (status transitions from "in_progress" to "completed" or "failed")
+- **Automatic Calculation**: All score calculation and point donation is handled by database triggers
